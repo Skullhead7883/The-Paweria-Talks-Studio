@@ -27,7 +27,7 @@ def wishMe():
 if __name__ == "__main__":
     wishMe()
     
-    speak ("Hi I am Sherlock which stands for Smart, Highly Advanced, Efficient, Responsive, Logical, Observant, Compassionate and Knowledgeable. Gosh I like this acronym so much.I know your first question will be who I am. So I am an AI assistant created by Mr. Devvratha Singh Paweria for his home and office automation just like JARVIS. Just kidding I was created to help individuals who are unable to share their problem openly with anybody, they can share it with me as I listen very empathically and will always help you all.")
+    speak ("Allow me to introduce myself, I am Sherlock an ai assistant. ")
     voice = pyttsx3.init()
     In = input("Searching wikipedia/google: ")
     result = wikipedia.summary(In, sentences = 3)
