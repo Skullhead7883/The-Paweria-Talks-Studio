@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catch the Falling Objects</title>
+    <style>
+        /* style.css */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        #game-container {
+            position: relative;
+            width: 400px;
+            height: 600px;
+            background-color: #87CEEB;
+            border: 2px solid #000;
+            overflow: hidden;
+        }
+
+        #basket {
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            width: 60px;
+            height: 30px;
+            background-color: #2E8B57;
+            border-radius: 10px;
+            transform: translateX(-50%);
+        }
+
+        .falling-object {
+            position: absolute;
+            top: -30px;
+            width: 30px;
+            height: 30px;
+            background-color: #FF6347;
+            border-radius: 50%;
+        }
+
+        #score, #lives {
+            position: absolute;
+            top: 20px;
+            font-size: 20px;
+            color: #000;
+        }
+
+        #score {
+            left: 20px;
+        }
+
+        #lives {
+            right: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="basket"></div>
+        <div class="falling-object"></div>
+    </div>
+    <div id="score">Score: 0</div>
+    <div id="lives">Lives: 3</div>
+
+    <script>
+        // script.js
+
+        let basket = document.getElementById('basket');
+        let gameContainer = document.getElementById('game-container');
+        let scoreDisplay = document.getElementById('score');
+        let livesDisplay = document.getElementById('lives');
+
+        let score = 0;
+        let lives = 3;
+        let basketWidth = basket.offsetWidth;
+        let containerWidth = gameContainer.offsetWidth;
+
+        let fallingObjects = [];
+
+        function createFallingObject() {
+            let fallingObject = document.createElement('div');
+            fallingObject.classList.add('falling-object');
+            fallingObject.style.left = Math.random() * (containerWidth - 30) + 'px';
+            gameContainer.appendChild(fallingObject);
+            fallingObjects.push(fallingObject);
+        }
+
+        function moveBasket(event) {
+            let mouseX = event.clientX;
+            let basketX = mouseX - gameContainer.offsetLeft - basketWidth / 2;
+            basketX = Math.max(0, Math.min(basketX, containerWidth - basketWidth));
+            basket.style.left = basketX + 'px';
+        }
+
+        function dropObjects() {
+            fallingObjects.forEach((object, index) => {
+                let objectY = object.offsetTop + 5;
+                object.style.top = objectY + 'px';
+
+                if (objectY > gameContainer.offsetHeight) {
+                    lives--;
+                    object.remove();
+                    fallingObjects.splice(index, 1);
+                    updateLives();
+                    if (lives === 0) {
+                        alert('Game Over!');
+                        resetGame();
+                    }
+                } else if (isCollision(object)) {
+                    score++;
+                    object.remove();
+                    fallingObjects.splice(index, 1);
+                    updateScore();
+                }
+            });
+        }
+
+        function isCollision(object) {
+            let objectRect = object.getBoundingClientRect();
+            let basketRect = basket.getBoundingClientRect();
+
+            return !(objectRect.right < basketRect.left || 
+                     objectRect.left > basketRect.right || 
+                     objectRect.bottom < basketRect.top || 
+                     objectRect.top > basketRect.bottom);
+        }
+
+        function updateScore() {
+            scoreDisplay.innerText = 'Score: ' + score;
+        }
+
+        function updateLives() {
+            livesDisplay.innerText = 'Lives: ' + lives;
+        }
+
+        function resetGame() {
+            score = 0;
+            lives = 3;
+            updateScore();
+            updateLives();
+            fallingObjects.forEach(object => object.remove());
+            fallingObjects = [];
+        }
+
+        function gameLoop() {
+            dropObjects();
+            requestAnimationFrame(gameLoop);
+        }
+
+        document.addEventListener('mousemove', moveBasket);
+        setInterval(createFallingObject, 1000); // Create a new object every second
+        gameLoop();
+    </script>
+</body>
+</html>
+
