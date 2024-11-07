@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Land It 2.0</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+            background-color: #000;
+        }
+
+        canvas {
+            display: block;
+            background-color: #000;
+            margin: 0 auto;
+        }
+
+        .touchdown-message {
+            font-size: 40px;
+            color: white;
+            text-align: center;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-family: Arial, sans-serif;
+            display: none;
+        }
+
+        .fuel-bar {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 200px;
+            height: 20px;
+            background-color: #444;
+            border: 1px solid #fff;
+        }
+
+        .fuel-bar-fill {
+            height: 100%;
+            background-color: #00FF00;
+            width: 100%; /* Full width initially */
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+    <div id="touchdownMessage" class="touchdown-message">Touchdown! You've mastered the skies and made it back to Earth. Are you ready for the next launch?</div>
+    <div id="fuelBar" class="fuel-bar">
+        <div id="fuelBarFill" class="fuel-bar-fill"></div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+
+        canvas.width = 800;
+        canvas.height = 600;
+
+        // Game variables
+        let rocketX = canvas.width / 2 - 25;
+        let rocketY = 100;
+        let rocketSpeedX = 0;
+        let rocketSpeedY = 0;
+        let isGameOver = false;
+        let isLanded = false;
+
+        // Rocket properties
+        const rocketWidth = 50;
+        const rocketHeight = 80;
+        const thrustPower = -0.3; // Rocket thrust (negative to go up)
+        const gravity = 0.1; // Gravity pulling down
+        const maxSpeed = 5; // Maximum horizontal speed
+        const thrustDecay = 0.05; // Thrust decay for horizontal movement
+
+        // Landing pad (Runway) variables
+        let padX = 300;
+        const padY = 500;
+        const padWidth = 200;
+        const padHeight = 20;
+        let padDirection = 1; // 1 for right, -1 for left
+        let padSpeed = 1; // Speed of the pad's movement
+
+        // Star field (background)
+        const numStars = 200;
+        let stars = [];
+
+        // Player controls
+        let isUpPressed = false;
+        let isDownPressed = false;
+        let isLeftPressed = false;
+        let isRightPressed = false;
+
+        // Fuel variables
+        let fuel = 100; // Fuel starts at 100%
+        const maxFuel = 100;
+        const fuelConsumptionRate = 0.2; // Amount of fuel consumed per thrust
+        const fuelRegenRate = 0.05; // Fuel regenerates over time if not thrusting
+
+        // Generate stars
+        function generateStars() {
+            stars = [];
+            for (let i = 0; i < numStars; i++) {
+                stars.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    size: Math.random() * 2
+                });
+            }
+        }
+
+        // Draw the stars
+        function drawStars() {
+            ctx.fillStyle = "white";
+            stars.forEach(star => {
+                ctx.beginPath();
+                ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+
+        // Draw the rocket
+        function drawRocket() {
+            ctx.fillStyle = "#FFD700";
+            ctx.beginPath();
+            ctx.moveTo(rocketX, rocketY);
+            ctx.lineTo(rocketX + rocketWidth / 2, rocketY + rocketHeight);
+            ctx.lineTo(rocketX - rocketWidth / 2, rocketY + rocketHeight);
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        // Draw the landing pad
+        function drawPad() {
+            ctx.fillStyle = "#228B22";
+            ctx.fillRect(padX, padY, padWidth, padHeight);
+        }
+
+        // Draw the engine flames
+        function drawEngineFlame() {
+            if (isUpPressed && fuel > 0) {
+                // Flames coming from the bottom of the rocket
+                ctx.fillStyle = "orange";
+                ctx.beginPath();
+                ctx.moveTo(rocketX - rocketWidth / 4, rocketY + rocketHeight);  // Left side of the rocket
+                ctx.lineTo(rocketX + rocketWidth / 4, rocketY + rocketHeight);  // Right side of the rocket
+                ctx.lineTo(rocketX, rocketY + rocketHeight + 20); // Flame tail
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.fillStyle = "red"; // Inner flame color
+                ctx.beginPath();
+                ctx.moveTo(rocketX - rocketWidth / 6, rocketY + rocketHeight + 5);
+                ctx.lineTo(rocketX + rocketWidth / 6, rocketY + rocketHeight + 5);
+                ctx.lineTo(rocketX, rocketY + rocketHeight + 15);
+                ctx.closePath();
+                ctx.fill();
+            }
+        }
+
+        // Check if the rocket has landed
+        function checkLanding() {
+            if (rocketY + rocketHeight >= padY && rocketY + rocketHeight <= padY + padHeight) {
+                if (rocketX + rocketWidth / 2 > padX && rocketX - rocketWidth / 2 < padX + padWidth) {
+                    // Check for safe landing (not too fast)
+                    if (Math.abs(rocketSpeedY) > 3 || Math.abs(rocketSpeedX) > 2) {
+                        // Hard landing
+                        isGameOver = true;
+                    } else {
+                        // Successful landing
+                        isLanded = true;
+                        isGameOver = true;
+                        document.getElementById("touchdownMessage").style.display = "block";
+                    }
+                    return true;  // Rocket has landed
+                }
+            }
+            return false;  // No landing
+        }
+
+        // Update the fuel bar
+        function updateFuelBar() {
+            const fuelBarFill = document.getElementById("fuelBarFill");
+            fuelBarFill.style.width = `${fuel}%`;
+            if (fuel <= 0) {
+                isUpPressed = false; // Disable thrust if no fuel
+            }
+        }
+
+        // Update game state
+        function update() {
+            if (isGameOver) return; // If game is over, stop updates
+
+            // Fuel regeneration (if not thrusting)
+            if (!isUpPressed && fuel < maxFuel) {
+                fuel = Math.min(fuel + fuelRegenRate, maxFuel);
+            }
+
+            // Move the rocket based on user input
+            if (isUpPressed && fuel > 0) {
+                rocketSpeedY += thrustPower;  // Apply thrust to go up
+                fuel -= fuelConsumptionRate; // Consume fuel
+            }
+            if (isDownPressed) rocketSpeedY += gravity;    // Apply gravity to go down
+            if (isLeftPressed) rocketSpeedX = Math.max(rocketSpeedX - thrustDecay, -maxSpeed);  // Move left
+            if (isRightPressed) rocketSpeedX = Math.min(rocketSpeedX + thrustDecay, maxSpeed); // Move right
+
+            // Apply gravity
+            rocketSpeedY += gravity;
+
+            // Move the rocket by its speed
+            rocketY += rocketSpeedY;
+            rocketX += rocketSpeedX;
+
+            // Move the platform (landing pad)
+            padX += padDirection * padSpeed;
+
+            // Reverse direction if the platform reaches the edge
+            if (padX <= 0 || padX + padWidth >= canvas.width) {
+                padDirection = -padDirection;  // Change direction
+                padSpeed = Math.random() * 2 + 1; // Randomize the speed of movement
+            }
+
+            // Prevent the rocket from flying off the screen horizontally
+            if (rocketX < 0) rocketX = 0;
+            if (rocketX > canvas.width - rocketWidth) rocketX = canvas.width - rocketWidth;
+
+            // Check if the rocket has landed
+            if (!checkLanding()) {
+                // If not landed, keep updating the canvas
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                drawStars();
+                drawRocket();
+                drawPad();
+                drawEngineFlame();
+                updateFuelBar();
+            }
+        }
+
+        // Start the game loop
+        function gameLoop() {
+            update();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Key press event listeners
+        window.addEventListener("keydown", function (event) {
+            if (event.code === "ArrowUp") isUpPressed = true;
+            if (event.code === "ArrowDown") isDownPressed = true;
+            if (event.code === "ArrowLeft") isLeftPressed = true;
+            if (event.code === "ArrowRight") isRightPressed = true;
+        });
+
+        window.addEventListener("keyup", function (event) {
+            if (event.code === "ArrowUp") isUpPressed = false;
+            if (event.code === "ArrowDown") isDownPressed = false;
+            if (event.code === "ArrowLeft") isLeftPressed = false;
+            if (event.code === "ArrowRight") isRightPressed = false;
+        });
+
+        // Initialize the game
+        generateStars();
+        gameLoop();
+    </script>
+</body>
+</html>
