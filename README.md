@@ -1,1 +1,0 @@
-# The-Paweria-Talks-Studio
